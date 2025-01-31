@@ -9,4 +9,8 @@ publish = ["artifactory"]
 name = "5_6"
 path = "src/5_6.rs"
 
+[[bin]]
+name = "6_3_1"
+path = "src/6_3_1.rs"
+
 [dependencies]
