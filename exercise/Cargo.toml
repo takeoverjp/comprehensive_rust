@@ -5,5 +5,8 @@ edition = "2021"
 publish = ["artifactory"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "5_6"
+path = "src/5_6.rs"
 
 [dependencies]
