@@ -5,12 +5,9 @@
 fn offset_differences(offset: usize, values: Vec<i32>) -> Vec<i32> {
     values
         .iter()
-        .cycle()
-        .skip(offset)
-        .take(values.len())
-        .enumerate()
-        .map(|(idx, v)| *v - values[idx])
-        .collect::<Vec<_>>()
+        .zip(values.iter().cycle().skip(offset))
+        .map(|(x, y)| *y - *x)
+        .collect()
 }
 
 #[test]
