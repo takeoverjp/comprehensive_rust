@@ -1,7 +1,8 @@
-#[path = "26_5/gui.rs"]
-mod gui;
+mod mod_26_5 {
+    pub mod widgets;
+}
 
-use gui::{Button, Label, Widget, Window};
+use mod_26_5::widgets::{Button, Label, Widget, Window};
 
 fn main() {
     let mut window = Window::new("Rust GUI Demo 1.23");

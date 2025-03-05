@@ -1,3 +1,7 @@
+mod button;
+mod label;
+mod window;
+
 pub trait Widget {
     /// `self` の自然な幅。
     fn width(&self) -> usize;
@@ -12,3 +16,7 @@ pub trait Widget {
         println!("{buffer}");
     }
 }
+
+pub use button::Button;
+pub use label::Label;
+pub use window::Window;
