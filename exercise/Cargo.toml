@@ -73,4 +73,8 @@ path = "src/25_4.rs"
 name = "26_5"
 path = "src/26_5.rs"
 
+[[bin]]
+name = "27_4"
+path = "src/27_4.rs"
+
 [dependencies]
