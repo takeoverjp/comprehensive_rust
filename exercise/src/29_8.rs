@@ -1,5 +1,7 @@
 use std::iter::Peekable;
+use std::result::Result;
 use std::str::Chars;
+use thiserror::Error;
 
 /// 算術演算子。
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -68,28 +70,38 @@ impl<'a> Iterator for Tokenizer<'a> {
     }
 }
 
-fn parse(input: &str) -> Expression {
+#[derive(Debug, Error)]
+enum ParseError {
+    #[error("Unexpected end of input")]
+    UnexpectedEof,
+    #[error("Invalid 32-bit integer")]
+    InvalidInt,
+    #[error("Unexpected token")]
+    UnexpectedToken(String),
+}
+
+fn parse(input: &str) -> Result<Expression, ParseError> {
     let mut tokens = tokenize(input);
 
-    fn parse_expr(tokens: &mut Tokenizer) -> Expression {
-        let Some(tok) = tokens.next() else {
-            panic!("Unexpected end of input");
-        };
+    fn parse_expr(tokens: &mut Tokenizer) -> Result<Expression, ParseError> {
+        let tok = tokens.next().ok_or(ParseError::UnexpectedEof)?;
         let expr = match tok {
             Token::Number(num) => {
-                let v = num.parse().expect("Invalid 32-bit integer");
+                let v = num.parse().map_err(|_| ParseError::InvalidInt)?;
                 Expression::Number(v)
             }
             Token::Identifier(ident) => Expression::Var(ident),
-            Token::Operator(_) => panic!("Unexpected token {tok:?}"),
+            Token::Operator(_) => return Err(ParseError::UnexpectedToken(format!("{tok:?}"))),
         };
         // バイナリ演算が存在する場合はパースします。
         match tokens.next() {
-            None => expr,
-            Some(Token::Operator(op)) => {
-                Expression::Operation(Box::new(expr), op, Box::new(parse_expr(tokens)))
-            }
-            Some(tok) => panic!("Unexpected token {tok:?}"),
+            None => Ok(expr),
+            Some(Token::Operator(op)) => Ok(Expression::Operation(
+                Box::new(expr),
+                op,
+                Box::new(parse_expr(tokens)?),
+            )),
+            Some(tok) => Err(ParseError::UnexpectedToken(format!("{tok:?}"))),
         }
     }
 
