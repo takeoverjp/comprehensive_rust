@@ -81,4 +81,9 @@ path = "src/27_4.rs"
 name = "29_8"
 path = "src/29_8.rs"
 
+[[bin]]
+name = "30_7"
+path = "src/30_7.rs"
+
 [dependencies]
+thiserror="1"
