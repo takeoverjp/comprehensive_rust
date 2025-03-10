@@ -70,11 +70,12 @@ impl DirectoryIterator {
     fn new(path: &str) -> Result<DirectoryIterator, String> {
         // opendir を呼び出し、成功した場合は Ok 値を返し、
         // それ以外の場合はメッセージとともに Err を返します。
-        let dir = ffi::opendir(path.into());
-        if dir == std::ptr::null() {
-            Err("".to_string())
+        let path = CString::new(path).unwrap();
+        let dir = unsafe { ffi::opendir(path.as_ptr()) };
+        if dir.is_null() {
+            Err("opendir failed".to_string())
         } else {
-            Ok(path.into(), dir)
+            Ok(Self { path, dir })
         }
     }
 }
@@ -83,14 +84,23 @@ impl Iterator for DirectoryIterator {
     type Item = OsString;
     fn next(&mut self) -> Option<OsString> {
         // NULL ポインタが返されるまで readdir を呼び出し続けます。
-        unimplemented!()
+        let ent = unsafe { ffi::readdir(self.dir) };
+        if ent.is_null() {
+            None
+        } else {
+            unsafe {
+                Some(OsStr::from_bytes(CStr::from_ptr((*ent).d_name.as_ptr()).to_bytes()).into())
+            }
+        }
     }
 }
 
 impl Drop for DirectoryIterator {
     fn drop(&mut self) {
         // 必要に応じて closedir を呼び出します。
-        unimplemented!()
+        unsafe {
+            ffi::closedir(self.dir);
+        }
     }
 }
 
