@@ -1,5 +1,7 @@
+use anyhow::anyhow;
+use anyhow::Context;
+use anyhow::Result;
 use std::iter::Peekable;
-use std::result::Result;
 use std::str::Chars;
 use thiserror::Error;
 
@@ -16,6 +18,12 @@ enum Token {
     Number(String),
     Identifier(String),
     Operator(Op),
+}
+
+#[derive(Debug, Error)]
+enum TokenizeError {
+    #[error("Unexpected character '{0}'")]
+    UnexpectedChar(char),
 }
 
 /// 式言語の式
@@ -56,16 +64,16 @@ impl<'a> Tokenizer<'a> {
 }
 
 impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token;
+    type Item = Result<Token>;
 
-    fn next(&mut self) -> Option<Token> {
+    fn next(&mut self) -> Option<Result<Token>> {
         let c = self.0.next()?;
         match c {
-            '0'..='9' => Some(self.collect_number(c)),
-            'a'..='z' => Some(self.collect_identifier(c)),
-            '+' => Some(Token::Operator(Op::Add)),
-            '-' => Some(Token::Operator(Op::Sub)),
-            _ => panic!("Unexpected character {c}"),
+            '0'..='9' => Some(Ok(self.collect_number(c))),
+            'a'..='z' => Some(Ok(self.collect_identifier(c))),
+            '+' => Some(Ok(Token::Operator(Op::Add))),
+            '-' => Some(Ok(Token::Operator(Op::Sub))),
+            _ => Some(Err(anyhow!(TokenizeError::UnexpectedChar(c)))),
         }
     }
 }
@@ -76,32 +84,38 @@ enum ParseError {
     UnexpectedEof,
     #[error("Invalid 32-bit integer")]
     InvalidInt,
-    #[error("Unexpected token")]
+    #[error("Unexpected token \"{0}\"")]
     UnexpectedToken(String),
 }
 
-fn parse(input: &str) -> Result<Expression, ParseError> {
+fn parse(input: &str) -> Result<Expression> {
     let mut tokens = tokenize(input);
 
-    fn parse_expr(tokens: &mut Tokenizer) -> Result<Expression, ParseError> {
-        let tok = tokens.next().ok_or(ParseError::UnexpectedEof)?;
+    fn parse_expr(tokens: &mut Tokenizer) -> Result<Expression> {
+        let tok = tokens.next().ok_or(ParseError::UnexpectedEof)??;
         let expr = match tok {
             Token::Number(num) => {
                 let v = num.parse().map_err(|_| ParseError::InvalidInt)?;
                 Expression::Number(v)
             }
             Token::Identifier(ident) => Expression::Var(ident),
-            Token::Operator(_) => return Err(ParseError::UnexpectedToken(format!("{tok:?}"))),
+            Token::Operator(_) => {
+                return Err(ParseError::UnexpectedToken(format!("{tok:?}")))
+                    .context("first token is operator");
+            }
         };
         // バイナリ演算が存在する場合はパースします。
         match tokens.next() {
             None => Ok(expr),
-            Some(Token::Operator(op)) => Ok(Expression::Operation(
-                Box::new(expr),
-                op,
-                Box::new(parse_expr(tokens)?),
-            )),
-            Some(tok) => Err(ParseError::UnexpectedToken(format!("{tok:?}"))),
+            Some(tok) => match tok? {
+                Token::Operator(op) => Ok(Expression::Operation(
+                    Box::new(expr),
+                    op,
+                    Box::new(parse_expr(tokens)?),
+                )),
+                tok => Err(ParseError::UnexpectedToken(format!("{tok:?}")))
+                    .context("second token is not operator"),
+            },
         }
     }
 
@@ -109,6 +123,7 @@ fn parse(input: &str) -> Result<Expression, ParseError> {
 }
 
 fn main() {
-    let expr = parse("10+foo+20-30");
-    println!("{expr:?}");
+    println!("{:?}", parse("10+foo+20-30"));
+    println!("{:?}", parse("10++foo+20-30").unwrap_err());
+    println!("{:?}", parse("10*foo+20-30").unwrap_err());
 }
